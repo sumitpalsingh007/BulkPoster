@@ -13,27 +13,47 @@ import com.google.api.services.youtube.model.SearchListResponse;
 import com.google.api.services.youtube.model.SearchResult;
 import com.google.api.services.youtube.model.Video;
 import com.google.api.services.youtube.model.VideoListResponse;
+import com.opencsv.exceptions.CsvException;
 
 public class YouTubeChannelVideos {
 
     private static final String APPLICATION_NAME = "Bulk Poster";
     private static final String API_KEY = "";
     private static final String CHANNEL_ID = "UC1ZB_M18rLYUzmsdPEeoXnA";
+    private static final String LINK="https://www.youtube.com/watch?v=";
 
-    public static void main(String[] args) throws GeneralSecurityException, IOException {
+    public static void main(String[] args) throws GeneralSecurityException, IOException, InterruptedException, CsvException {
         YouTube youtubeService = getService();
         String channelId = "UC1ZB_M18rLYUzmsdPEeoXnA";
-        List<Video> videos = getChannelVideos(youtubeService, channelId);
 
+        //Set Property File
+        App.setConfigurations(args);
+        // Get all video
+        List<Video> videos = getChannelVideos(youtubeService, channelId);
         videos.sort((v1, v2) -> Long.compare(v2.getStatistics().getViewCount().longValue(),
                                              v1.getStatistics().getViewCount().longValue()));
-
         for (Video video : videos) {
             System.out.println("Title: " + video.getSnippet().getTitle()
                                + ", Views: " + video.getStatistics().getViewCount()
                                + ", Kind: " + video.getKind());
             System.out.println("Link: https://www.youtube.com/watch?v=" + video.getId());
         }
+
+        // Random Video
+        System.out.println("***************Random Video Post Task Start *********************** Start Time : "+System.currentTimeMillis());
+        long startTime = System.currentTimeMillis();
+        LinkedInPoster linkedInPoster = new LinkedInPoster();
+        linkedInPoster.login(App.MAIL,App.PASSWORD);
+        Video randomVideo =  getRandomYoutubeVideos();
+
+        System.out.println(" Random Video Title : "+randomVideo.getId()+"  "+randomVideo.getSnippet().getTitle());
+
+        linkedInPoster.postToGroups(LINK+randomVideo.getId(),randomVideo.getSnippet().getTitle());
+
+        long endTime = System.currentTimeMillis();
+        long duration = (endTime - startTime)/1000;
+        System.out.println("***************Random Video Post Task End *********************** End Time : "+endTime+" Total Time : "+duration+"'s");
+
     }
 
     public static Video getRandomYoutubeVideos() throws GeneralSecurityException, IOException {
