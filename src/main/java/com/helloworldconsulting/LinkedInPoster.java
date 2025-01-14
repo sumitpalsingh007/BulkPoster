@@ -1,26 +1,30 @@
 package com.helloworldconsulting;
-//linkedintesting11
-import com.opencsv.CSVReader;
-import com.opencsv.exceptions.CsvException;
+
+import com.google.api.services.youtube.YouTube;
+import com.google.api.services.youtube.model.Video;
 import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
+import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 public class LinkedInPoster {
 
     private static final String SHARE_BUTTON = "button[class='artdeco-button artdeco-button--muted artdeco-button--4 artdeco-button--tertiary ember-view share-box-feed-entry__trigger']";
-    private static final String SHARE_BUTTON_BY_XPATH = "//div[@class='share-box-feed-entry__top-bar']//button";
+    private static final String SHARE_BUTTON_BY_XPATH = "//button[contains(@class, 'share-box-feed-entry__trigger')]";
     private static final String DIV_ROLE_TEXTBOX = "div[role='textbox']";
     private static final String BUTTON_PRIMARY_EMBER_VIEW = "button[class='share-actions__primary-action artdeco-button artdeco-button--2 artdeco-button--primary ember-view']";
     private WebDriver driver;
@@ -31,16 +35,13 @@ public class LinkedInPoster {
         // Setting ChromeOptions
         ChromeOptions options = new ChromeOptions();
         options.addArguments("--remote-allow-origins=*");
-      /*  options.addArguments("--headless");
-        options.addArguments("--disable-gpu");*/
-        //options.addExtensions(new File("/path/to/extension.crx"));
+        options.addExtensions(new File("/path/to/extension.crx"));
         // Initializing the WebDriver with ChromeOptions
-        //System.setProperty("webdriver.chrome.driver", "/opt/homebrew/bin/chromedriver");
-
+        System.setProperty("webdriver.chrome.driver", "/opt/homebrew/bin/chromedriver");
         driver = new ChromeDriver(options);
     }
 
-    public void login(String username, String password) {
+    public void login(String username, String password) throws InterruptedException {
         driver.get("https://www.linkedin.com/login");
 
         WebElement usernameField = driver.findElement(By.id("username"));
@@ -90,14 +91,9 @@ public class LinkedInPoster {
 
         //List<WebElement> liElements = ulElement.findElements(By.cssSelector("li.artdeco-list__item"));
 
-        List<String> urls;
-
-        //for handling default groups
-        if(App.urlsList == null) {
-            System.out.println("URLs not set");
-            urls = new ArrayList<>();
-
-       urls.add("https://www.linkedin.com/groups/10330716/");
+        List<String> urls = new ArrayList<>();
+        //urls.add("https://www.linkedin.com/groups/9074455/");
+        urls.add("https://www.linkedin.com/groups/10330716/");
         urls.add("https://www.linkedin.com/groups/12491361/");
         urls.add("https://www.linkedin.com/groups/1821361/");
         urls.add("https://www.linkedin.com/groups/2219633/");
@@ -143,21 +139,16 @@ public class LinkedInPoster {
         urls.add("https://www.linkedin.com/groups/8444948/");
         urls.add("https://www.linkedin.com/groups/2066905/");
         urls.add("https://www.linkedin.com/groups/1251651");
-        //urls.add("https://www.linkedin.com/groups/9074455/");
-        } else{
-            urls = App.urlsList;
-        }
         int count  = 0;
         for (String groupUrl : urls) {
             try {
-                System.out.println(groupUrl);
                 driver.navigate().to(groupUrl);
                 new WebDriverWait(driver, Duration.ofSeconds(40))
                         .until(ExpectedConditions.presenceOfElementLocated(By.xpath(SHARE_BUTTON_BY_XPATH)));
                 WebElement startPostButton = driver.findElement(By.xpath(SHARE_BUTTON_BY_XPATH));
                 startPostButton.click();
 
-                new WebDriverWait(driver, Duration.ofSeconds(4))
+                new WebDriverWait(driver, Duration.ofSeconds(3))
                         .until(ExpectedConditions.presenceOfElementLocated(By.cssSelector(DIV_ROLE_TEXTBOX)));
                 WebElement postTextArea = driver.findElement(By.cssSelector(DIV_ROLE_TEXTBOX));
 
@@ -192,18 +183,11 @@ public class LinkedInPoster {
         }
     }
 
-    public static void main(String[] args) throws InterruptedException, IOException, CsvException {
-
-
-
+    public static void main(String[] args) throws InterruptedException, GeneralSecurityException, IOException {
         LinkedInPoster poster = new LinkedInPoster();
-        App.setConfigurations(args);
-
-        System.out.println("Csv File Name "+App.csvFile);
-        System.out.println("Properties file Name "+App.propertiesFile);
-
-
-        System.out.println(App.MAIL+" "+App.PASSWORD);
+        /*Video randomVideo = YouTubeChannelVideos.getRandomYoutubeVideos();
+        poster.postToGroups("https://www.youtube.com/watch?v="  + randomVideo.getId(),
+                randomVideo.getSnippet().getTitle());*/
         poster.login(App.MAIL, App.PASSWORD);
         poster.postToGroups(App.POST, App.TITLE);
 
