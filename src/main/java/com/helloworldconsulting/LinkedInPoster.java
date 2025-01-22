@@ -1,7 +1,7 @@
 package com.helloworldconsulting;
-//linkedintesting11
+
+import com.google.api.services.youtube.model.Video;
 import com.opencsv.CSVReader;
-import com.opencsv.exceptions.CsvException;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -9,14 +9,18 @@ import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
-
-import java.io.File;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import java.io.FileReader;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
+@SpringBootApplication
 public class LinkedInPoster {
 
     private static final String SHARE_BUTTON = "button[class='artdeco-button artdeco-button--muted artdeco-button--4 artdeco-button--tertiary ember-view share-box-feed-entry__trigger']";
@@ -25,18 +29,26 @@ public class LinkedInPoster {
     private static final String BUTTON_PRIMARY_EMBER_VIEW = "button[class='share-actions__primary-action artdeco-button artdeco-button--2 artdeco-button--primary ember-view']";
     private WebDriver driver;
 
+    @Value("${mail}")
+    private String email;
+
+    @Value("${password}")
+    private String password;
+
+    @Value("${csvFilePath}")
+    private String csvFilePath;
+
     public LinkedInPoster() {
         //WebDriverManager.chromedriver().setup();
 
         // Setting ChromeOptions
         ChromeOptions options = new ChromeOptions();
         options.addArguments("--remote-allow-origins=*");
-      /*  options.addArguments("--headless");
-        options.addArguments("--disable-gpu");*/
+        options.addArguments("--headless");
+        options.addArguments("--disable-gpu");
         //options.addExtensions(new File("/path/to/extension.crx"));
         // Initializing the WebDriver with ChromeOptions
-        //System.setProperty("webdriver.chrome.driver", "/opt/homebrew/bin/chromedriver");
-
+        System.setProperty("webdriver.chrome.driver", "C:/Users/bhagy/OneDrive/Documents/ChromeDriver/chromedriver-win64/chromedriver-win64/chromedriver.exe");
         driver = new ChromeDriver(options);
     }
 
@@ -90,14 +102,9 @@ public class LinkedInPoster {
 
         //List<WebElement> liElements = ulElement.findElements(By.cssSelector("li.artdeco-list__item"));
 
-        List<String> urls;
+        List<String> urls = new ArrayList<>();
 
-        //for handling default groups
-        if(App.urlsList == null) {
-            System.out.println("URLs not set");
-            urls = new ArrayList<>();
-
-       urls.add("https://www.linkedin.com/groups/10330716/");
+        /*urls.add("https://www.linkedin.com/groups/10330716/");
         urls.add("https://www.linkedin.com/groups/12491361/");
         urls.add("https://www.linkedin.com/groups/1821361/");
         urls.add("https://www.linkedin.com/groups/2219633/");
@@ -144,9 +151,9 @@ public class LinkedInPoster {
         urls.add("https://www.linkedin.com/groups/2066905/");
         urls.add("https://www.linkedin.com/groups/1251651");
         //urls.add("https://www.linkedin.com/groups/9074455/");
-        } else{
-            urls = App.urlsList;
-        }
+*/
+       urls = loadCsvFile(csvFilePath);
+
         int count  = 0;
         for (String groupUrl : urls) {
             try {
@@ -192,22 +199,30 @@ public class LinkedInPoster {
         }
     }
 
-    public static void main(String[] args) throws InterruptedException, IOException, CsvException {
+    public List<String> loadCsvFile(String filePath) {
+        List<String> urlList = new ArrayList<>();
+        try (CSVReader csvReader = new CSVReader(new FileReader(filePath))) {
+            List<String[]> records = csvReader.readAll();
+            for (String[] record : records) {
+                System.out.println(String.join(", ", record));
+                urlList.add(record[0]);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return urlList;
+    }
 
+    public static void main(String[] args) throws GeneralSecurityException, IOException, InterruptedException {
 
+        AnnotationConfigApplicationContext context = (AnnotationConfigApplicationContext)SpringApplication.run(LinkedInPoster.class, args);     //LinkedInPoster poster = new LinkedInPoster();
+        LinkedInPoster poster = context.getBean(LinkedInPoster.class);
+        System.out.println("Mail : "+poster.email+" Password : "+poster.password+"Csv File Path : "+poster.csvFilePath);
+        poster.login(poster.email, poster.password);
 
-        LinkedInPoster poster = new LinkedInPoster();
-        App.setConfigurations(args);
-
-        System.out.println("Csv File Name "+App.csvFile);
-        System.out.println("Properties file Name "+App.propertiesFile);
-
-
-        System.out.println(App.MAIL+" "+App.PASSWORD);
-        poster.login(App.MAIL, App.PASSWORD);
-        poster.postToGroups(App.POST, App.TITLE);
-
-
+        // Post random video on LinkedIn
+        Video randomVideo =YouTubeChannelVideos.getRandomYoutubeVideos();
+        poster.postToGroups("https://www.youtube.com/watch?v="+randomVideo.getId(),randomVideo.getSnippet().getTitle());
         poster.quit();
     }
 }
