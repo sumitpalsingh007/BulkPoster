@@ -30,14 +30,14 @@ public class LinkedInPoster {
     private WebDriver driver;
 
     public LinkedInPoster() {
-        //WebDriverManager.chromedriver().setup();
+        WebDriverManager.chromedriver().setup();
 
         // Setting ChromeOptions
         ChromeOptions options = new ChromeOptions();
         options.addArguments("--remote-allow-origins=*");
-        options.addExtensions(new File("/path/to/extension.crx"));
+        //options.addExtensions(new File("/path/to/extension.crx"));
         // Initializing the WebDriver with ChromeOptions
-        System.setProperty("webdriver.chrome.driver", "/opt/homebrew/bin/chromedriver");
+        //System.setProperty("webdriver.chrome.driver", "/opt/homebrew/bin/chromedriver");
         driver = new ChromeDriver(options);
     }
 
@@ -54,6 +54,7 @@ public class LinkedInPoster {
         // Click the login butto
 
         // Wait for the verification code input to appear
+        Thread.sleep(5000);
         //WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(100));
         //wait.until(ExpectedConditions.presenceOfElementLocated(By.id("feed-nav-item")));
         /*if(!driver.findElement(By.id("feed-nav-item")).isDisplayed()) {
