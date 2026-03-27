@@ -1,0 +1,66 @@
+# GCP Cloud Build – builds the image and deploys/updates the Cloud Run Job.
+#
+# Prerequisites (run once):
+#   gcloud run jobs create bulk-poster \
+#     --image gcr.io/$PROJECT_ID/bulk-poster:latest \
+#     --region us-central1 \
+#     --task-count 1 --max-retries 1 \
+#     --set-secrets LINKEDIN_EMAIL=linkedin-email:latest \
+#     --set-secrets LINKEDIN_PASSWORD=linkedin-password:latest \
+#     --set-secrets YOUTUBE_API_KEY=youtube-api-key:latest
+#
+#   # Schedule daily at 09:00 UTC via Cloud Scheduler:
+#   gcloud scheduler jobs create http bulk-poster-daily \
+#     --schedule "0 9 * * *" \
+#     --time-zone "UTC" \
+#     --uri "https://us-central1-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/$PROJECT_ID/jobs/bulk-poster:run" \
+#     --http-method POST \
+#     --oauth-service-account-email $SA_EMAIL
+#
+# Trigger this build on every push to master:
+#   gcloud builds triggers create github \
+#     --repo-name=BulkPoster --repo-owner=<your-github-user> \
+#     --branch-pattern="^master$" --build-config=cloudbuild.yaml
+
+steps:
+  # 1. Build fat JAR (skip tests – tests run in CI separately)
+  - name: 'maven:3.9-eclipse-temurin-11'
+    args: ['mvn', 'clean', 'package', '-DskipTests', '-q']
+    id: build-jar
+
+  # 2. Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -t
+      - gcr.io/$PROJECT_ID/bulk-poster:$COMMIT_SHA
+      - -t
+      - gcr.io/$PROJECT_ID/bulk-poster:latest
+      - .
+    id: build-image
+    waitFor: [build-jar]
+
+  # 3. Push image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '--all-tags', 'gcr.io/$PROJECT_ID/bulk-poster']
+    id: push-image
+    waitFor: [build-image]
+
+  # 4. Update the Cloud Run Job to use the new image
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - jobs
+      - update
+      - bulk-poster
+      - --image=gcr.io/$PROJECT_ID/bulk-poster:$COMMIT_SHA
+      - --region=us-central1
+    waitFor: [push-image]
+
+images:
+  - gcr.io/$PROJECT_ID/bulk-poster:$COMMIT_SHA
+  - gcr.io/$PROJECT_ID/bulk-poster:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY

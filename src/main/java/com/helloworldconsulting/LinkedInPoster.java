@@ -1,195 +1,191 @@
 package com.helloworldconsulting;
 
-import com.google.api.services.youtube.YouTube;
-import com.google.api.services.youtube.model.Video;
+import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
-import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 public class LinkedInPoster {
 
-    private static final String SHARE_BUTTON = "button[class='artdeco-button artdeco-button--muted artdeco-button--4 artdeco-button--tertiary ember-view share-box-feed-entry__trigger']";
-    private static final String SHARE_BUTTON_BY_XPATH = "//span[text()='Start a public post']/ancestor::button";
-    private static final String DIV_ROLE_TEXTBOX = "div[role='textbox']";
-    private static final String BUTTON_PRIMARY_EMBER_VIEW = "button[class='share-actions__primary-action artdeco-button artdeco-button--2 artdeco-button--primary ember-view']";
-    public static final String YOUTUBE_BASE_URL = "https://www.youtube.com/watch?v=";
-    private WebDriver driver;
+    private static final Logger log = LoggerFactory.getLogger(LinkedInPoster.class);
 
-    public LinkedInPoster() {
+    // XPath: more resilient than exact-class CSS selector
+    private static final String SHARE_BUTTON_XPATH =
+            "//button[contains(@class, 'artdeco-button--tertiary') and contains(@class, 'artdeco-button--4')]";
+
+    private static final String TEXTBOX_CSS =
+        "div[role='textbox']";
+    // Exact class match required by LinkedIn's current markup
+    private static final String POST_BUTTON_CSS =
+        "button[class='share-actions__primary-action artdeco-button artdeco-button--2 artdeco-button--primary ember-view']";
+
+    static final List<String> DEFAULT_GROUP_URLS = List.of(
+        "https://www.linkedin.com/groups/10330716/",
+        "https://www.linkedin.com/groups/12491361/",
+        "https://www.linkedin.com/groups/1821361/",
+        "https://www.linkedin.com/groups/2219633/",
+        "https://www.linkedin.com/groups/1804077/",
+        "https://www.linkedin.com/groups/737627/",
+        "https://www.linkedin.com/groups/1687427/",
+        "https://www.linkedin.com/groups/4056558/",
+        "https://www.linkedin.com/groups/118012/",
+        "https://www.linkedin.com/groups/77334/",
+        "https://www.linkedin.com/groups/2843596/",
+        "https://www.linkedin.com/groups/6749504/",
+        "https://www.linkedin.com/groups/7018767/",
+        "https://www.linkedin.com/groups/4125702/",
+        "https://www.linkedin.com/groups/6690249/",
+        "https://www.linkedin.com/groups/8529383/",
+        "https://www.linkedin.com/groups/8321253/",
+        "https://www.linkedin.com/groups/13901055/",
+        "https://www.linkedin.com/groups/9073445/",
+        "https://www.linkedin.com/groups/43888/",
+        "https://www.linkedin.com/groups/2512858/",
+        "https://www.linkedin.com/groups/70526/",
+        "https://www.linkedin.com/groups/3067985/",
+        "https://www.linkedin.com/groups/3852364/",
+        "https://www.linkedin.com/groups/10491264/",
+        "https://www.linkedin.com/groups/12111230/",
+        "https://www.linkedin.com/groups/13890947/",
+        "https://www.linkedin.com/groups/3674984/",
+        "https://www.linkedin.com/groups/7050539/",
+        "https://www.linkedin.com/groups/8491835/",
+        "https://www.linkedin.com/groups/13887989/",
+        "https://www.linkedin.com/groups/13887854/",
+        "https://www.linkedin.com/groups/8428322/",
+        "https://www.linkedin.com/groups/143130/",
+        "https://www.linkedin.com/groups/99500/",
+        "https://www.linkedin.com/groups/52152/",
+        "https://www.linkedin.com/groups/14360803/",
+        "https://www.linkedin.com/groups/9078278/",
+        "https://www.linkedin.com/groups/6795031/",
+        "https://www.linkedin.com/groups/10306078/",
+        "https://www.linkedin.com/groups/4226744/",
+        "https://www.linkedin.com/groups/8444948/",
+        "https://www.linkedin.com/groups/2066905/",
+        "https://www.linkedin.com/groups/1251651/"
+    );
+
+    private final WebDriver driver;
+    private final List<String> groupUrls;
+    private final long loginWaitMillis;
+
+    /**
+     * Creates a production instance with headless Chrome and the full group list.
+     */
+    public static LinkedInPoster create() {
         WebDriverManager.chromedriver().setup();
-
-        // Setting ChromeOptions
         ChromeOptions options = new ChromeOptions();
-        options.addArguments("--remote-allow-origins=*");
-        //options.addExtensions(new File("/path/to/extension.crx"));
-        // Initializing the WebDriver with ChromeOptions
-        //System.setProperty("webdriver.chrome.driver", "/opt/homebrew/bin/chromedriver");
-        driver = new ChromeDriver(options);
+        options.addArguments(
+            "--headless=new",
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--window-size=1920,1080",
+            "--remote-allow-origins=*"
+        );
+        return new LinkedInPoster(new ChromeDriver(options), DEFAULT_GROUP_URLS, 10000L);
+    }
+
+    /**
+     * Package-private: lets tests inject a mock/real WebDriver and custom group URLs.
+     * loginWaitMillis = 0 in tests to skip the post-login sleep.
+     */
+    LinkedInPoster(WebDriver driver, List<String> groupUrls, long loginWaitMillis) {
+        this.driver = driver;
+        this.groupUrls = groupUrls;
+        this.loginWaitMillis = loginWaitMillis;
+    }
+
+    /** Convenience constructor for integration tests (no login wait). */
+    LinkedInPoster(WebDriver driver, List<String> groupUrls) {
+        this(driver, groupUrls, 0L);
     }
 
     public void login(String username, String password) throws InterruptedException {
-        driver.get("https://www.linkedin.com/login");
+        login(username, password, "https://www.linkedin.com/login");
+    }
+
+    /**
+     * Logs in to LinkedIn. The loginUrl parameter is overridable for integration tests
+     * that point to a local mock page.
+     */
+    void login(String username, String password, String loginUrl) throws InterruptedException {
+        driver.get(loginUrl);
+        new WebDriverWait(driver, Duration.ofSeconds(15))
+                .until(ExpectedConditions.presenceOfElementLocated(By.id("username")));
 
         WebElement usernameField = driver.findElement(By.id("username"));
         WebElement passwordField = driver.findElement(By.id("password"));
-        WebElement loginButton = driver.findElement(By.xpath("//button[@type='submit']"));
+        WebElement loginButton  = driver.findElement(By.xpath("//button[@type='submit']"));
 
         usernameField.sendKeys(username);
         passwordField.sendKeys(password);
         loginButton.click();
-        // Click the login butto
 
-        // Wait for the verification code input to appear
-        Thread.sleep(5000);
-        //WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(100));
-        //wait.until(ExpectedConditions.presenceOfElementLocated(By.id("feed-nav-item")));
-        /*if(!driver.findElement(By.id("feed-nav-item")).isDisplayed()) {
-            WebElement verificationInput = wait.until(
-                    ExpectedConditions.presenceOfElementLocated(By.id("input_verification_code"))
-            );
-
-            // Prompt user to enter the verification code manually
-            Scanner scanner = new Scanner(System.in);
-            System.out.print("Enter the verification code sent to your email: ");
-            String verificationCode = scanner.nextLine();
-            scanner.close();
-
-            // Enter the verification code
-            verificationInput.sendKeys(verificationCode);
-            verificationInput.sendKeys(Keys.RETURN);
-
-            // Wait for the homepage to load (example: wait for the feed to load)
-            wait.until(ExpectedConditions.presenceOfElementLocated(By.id("feed-nav-item")));
-        }*/
-        System.out.println("Successfully logged in!");
+        // Wait for post-login redirect. In real usage LinkedIn redirects to the feed;
+        // we use a simple sleep here because the feed element ID changes with LinkedIn updates.
+        if (loginWaitMillis > 0) {
+            Thread.sleep(loginWaitMillis);
+        }
+        log.info("Login submitted for {}", username);
     }
 
     public void postToGroups(String url, String title) throws InterruptedException {
-        driver.get("https://www.linkedin.com/groups/");
-        Thread.sleep(3000);
-        //List<WebElement> groups = driver.findElements(By.cssSelector("a[href*='/groups/']"));
-        //new WebDriverWait(driver, Duration.ofSeconds(10))
-            //.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("a[href*='/groups/']")));
-
-        //List<WebElement> groupLinks = driver.findElements(By.cssSelector("a[href*='/groups/']"));
-
-        //List<WebElement> groups = driver.findElements(By.className("ul[class='artdeco-list artdeco-list--offset-2']"));
-        //WebElement ulElement = driver.findElement(By.cssSelector("ul.artdeco-list.artdeco-list--offset-2"));
-
-        //List<WebElement> liElements = ulElement.findElements(By.cssSelector("li.artdeco-list__item"));
-
-        List<String> urls = new ArrayList<>();
-        //urls.add("https://www.linkedin.com/groups/9074455/");
-        urls.add("https://www.linkedin.com/groups/10330716/");
-        urls.add("https://www.linkedin.com/groups/12491361/");
-        urls.add("https://www.linkedin.com/groups/1821361/");
-        urls.add("https://www.linkedin.com/groups/2219633/");
-        urls.add("https://www.linkedin.com/groups/1804077/");
-        urls.add("https://www.linkedin.com/groups/737627/");
-        //urls.add("https://www.linkedin.com/groups/46964/");
-        urls.add("https://www.linkedin.com/groups/1687427/");
-        urls.add("https://www.linkedin.com/groups/4056558/");
-        urls.add("https://www.linkedin.com/groups/118012/");
-        urls.add("https://www.linkedin.com/groups/77334/");
-        urls.add("https://www.linkedin.com/groups/2843596/");
-        urls.add("https://www.linkedin.com/groups/6749504/");
-        urls.add("https://www.linkedin.com/groups/7018767/");
-        urls.add("https://www.linkedin.com/groups/4125702/");
-        urls.add("https://www.linkedin.com/groups/6690249/");
-        urls.add("https://www.linkedin.com/groups/8529383/");
-        urls.add("https://www.linkedin.com/groups/8321253/");
-        urls.add("https://www.linkedin.com/groups/13901055/");
-        urls.add("https://www.linkedin.com/groups/9073445/");
-        urls.add("https://www.linkedin.com/groups/43888/");
-        urls.add("https://www.linkedin.com/groups/2512858/");
-        urls.add("https://www.linkedin.com/groups/70526/");
-        urls.add("https://www.linkedin.com/groups/3067985/");
-        urls.add("https://www.linkedin.com/groups/3852364/");
-        urls.add("https://www.linkedin.com/groups/10491264/");
-        urls.add("https://www.linkedin.com/groups/12111230/");
-        urls.add("https://www.linkedin.com/groups/13890947/");
-        urls.add("https://www.linkedin.com/groups/3674984/");
-        urls.add("https://www.linkedin.com/groups/7050539/");
-        urls.add("https://www.linkedin.com/groups/8491835/");
-        urls.add("https://www.linkedin.com/groups/13887989/");
-        urls.add("https://www.linkedin.com/groups/13887854/");
-        urls.add("https://www.linkedin.com/groups/8428322/");
-        urls.add("https://www.linkedin.com/groups/143130/");
-        urls.add("https://www.linkedin.com/groups/99500/");
-        urls.add("https://www.linkedin.com/groups/52152/");
-        //urls.add("https://www.linkedin.com/groups/3983267/");
-        urls.add("https://www.linkedin.com/groups/14360803/");
-        urls.add("https://www.linkedin.com/groups/9078278/");
-        urls.add("https://www.linkedin.com/groups/6795031/");
-        urls.add("https://www.linkedin.com/groups/10306078/");
-        urls.add("https://www.linkedin.com/groups/4226744/");
-        urls.add("https://www.linkedin.com/groups/8444948/");
-        urls.add("https://www.linkedin.com/groups/2066905/");
-        urls.add("https://www.linkedin.com/groups/1251651");
-        int count  = 0;
-        for (String groupUrl : urls) {
+        int count = 0;
+        for (String groupUrl : groupUrls) {
             try {
                 driver.navigate().to(groupUrl);
+
+                //checking for member exist in the group or not
+                WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+                try {
+                    wait.until(ExpectedConditions.elementToBeClickable(
+                            By.xpath(SHARE_BUTTON_XPATH)
+                    ));
+                } catch (Exception e) {
+                    log.warn("Not a member of group {}, skipping...", groupUrl);
+                    continue; //move to next group
+                }
+
+                // Member exist - post
+                WebElement postBtn = driver.findElement(By.xpath(SHARE_BUTTON_XPATH));
+                postBtn.click();
+
                 new WebDriverWait(driver, Duration.ofSeconds(10))
-                        .until(ExpectedConditions.presenceOfElementLocated(By.xpath(SHARE_BUTTON_BY_XPATH)));
-                WebElement startPostButton = driver.findElement(By.xpath(SHARE_BUTTON_BY_XPATH));
-                startPostButton.click();
+                    .until(ExpectedConditions.presenceOfElementLocated(By.cssSelector(TEXTBOX_CSS)));
+                WebElement textBox = driver.findElement(By.cssSelector(TEXTBOX_CSS));
 
-                new WebDriverWait(driver, Duration.ofSeconds(3))
-                        .until(ExpectedConditions.presenceOfElementLocated(By.cssSelector(DIV_ROLE_TEXTBOX)));
-                WebElement postTextArea = driver.findElement(By.cssSelector(DIV_ROLE_TEXTBOX));
+                textBox.sendKeys(url);
+                Thread.sleep(2000);
+                textBox.sendKeys(title);
 
-                JavascriptExecutor js = (JavascriptExecutor) driver;
-                js.executeScript("arguments[0].innerText = arguments[1];", postTextArea, url + "\n" + title);
-                Thread.sleep(500);
+                new WebDriverWait(driver, Duration.ofSeconds(10))
+                    .until(ExpectedConditions.presenceOfElementLocated(By.cssSelector(POST_BUTTON_CSS)));
+                driver.findElement(By.cssSelector(POST_BUTTON_CSS)).click();
 
-                new WebDriverWait(driver, Duration.ofSeconds(2))
-                        .until(ExpectedConditions.presenceOfElementLocated(By.cssSelector(BUTTON_PRIMARY_EMBER_VIEW)));
-                WebElement postButton = driver.findElement(By.cssSelector(BUTTON_PRIMARY_EMBER_VIEW));
-                postButton.click();
-                Thread.sleep(300);
+                Thread.sleep(1000);
                 count++;
-                System.out.println("posted in :- " + groupUrl + " count " + count);
-                //Thread.sleep(2000);
-                //driver.navigate().back();
-                //Thread.sleep(1000);
-                //WebElement dismissButton = driver.findElement(By.cssSelector("button[aria-label='Dismiss “Post successful.” notification 1 of 1.']"));
-                //dismissButton.click();
-                //Thread.sleep(2000);
-            } catch (Exception e){
-                e.printStackTrace();
+                log.info("Posted to group {} (total: {})", groupUrl, count);
+            } catch (Exception e) {
+                log.warn("Failed to post to group {}: {}", groupUrl, e.getMessage());
             }
         }
-        System.out.println("total posts :- " + count);
+        log.info("Finished posting. Successful: {}/{}", count, groupUrls.size());
     }
 
     public void quit() {
         if (driver != null) {
             driver.quit();
         }
-    }
-
-    public static void main(String[] args) throws InterruptedException, GeneralSecurityException, IOException {
-        LinkedInPoster poster = new LinkedInPoster();
-        poster.login(App.MAIL, App.PASSWORD);
-        Video randomVideo = YouTubeChannelVideos.getRandomYoutubeVideos();
-        poster.postToGroups(YOUTUBE_BASE_URL + randomVideo.getId(),
-                randomVideo.getSnippet().getTitle());
-        poster.quit();
     }
 }
