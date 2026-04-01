@@ -24,9 +24,10 @@ import java.util.Scanner;
 public class LinkedInPoster {
 
     private static final String SHARE_BUTTON = "button[class='artdeco-button artdeco-button--muted artdeco-button--4 artdeco-button--tertiary ember-view share-box-feed-entry__trigger']";
-    private static final String SHARE_BUTTON_BY_XPATH = "//button[contains(@class, 'share-box-feed-entry__trigger')]";
+    private static final String SHARE_BUTTON_BY_XPATH = "//span[text()='Start a public post']/ancestor::button";
     private static final String DIV_ROLE_TEXTBOX = "div[role='textbox']";
     private static final String BUTTON_PRIMARY_EMBER_VIEW = "button[class='share-actions__primary-action artdeco-button artdeco-button--2 artdeco-button--primary ember-view']";
+    public static final String YOUTUBE_BASE_URL = "https://www.youtube.com/watch?v=";
     private WebDriver driver;
 
     public LinkedInPoster() {
@@ -186,13 +187,10 @@ public class LinkedInPoster {
 
     public static void main(String[] args) throws InterruptedException, GeneralSecurityException, IOException {
         LinkedInPoster poster = new LinkedInPoster();
-        /*Video randomVideo = YouTubeChannelVideos.getRandomYoutubeVideos();
-        poster.postToGroups("https://www.youtube.com/watch?v="  + randomVideo.getId(),
-                randomVideo.getSnippet().getTitle());*/
         poster.login(App.MAIL, App.PASSWORD);
-        poster.postToGroups(App.POST, App.TITLE);
-
-
+        Video randomVideo = YouTubeChannelVideos.getRandomYoutubeVideos();
+        poster.postToGroups(YOUTUBE_BASE_URL + randomVideo.getId(),
+                randomVideo.getSnippet().getTitle());
         poster.quit();
     }
 }
