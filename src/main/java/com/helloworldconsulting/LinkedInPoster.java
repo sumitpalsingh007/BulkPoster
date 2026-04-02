@@ -81,7 +81,7 @@ public class LinkedInPoster {
 
     public void postToGroups(String url, String title) throws InterruptedException {
         driver.get("https://www.linkedin.com/groups/");
-        Thread.sleep(5000);
+        Thread.sleep(3000);
         //List<WebElement> groups = driver.findElements(By.cssSelector("a[href*='/groups/']"));
         //new WebDriverWait(driver, Duration.ofSeconds(10))
             //.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("a[href*='/groups/']")));
@@ -145,7 +145,7 @@ public class LinkedInPoster {
         for (String groupUrl : urls) {
             try {
                 driver.navigate().to(groupUrl);
-                new WebDriverWait(driver, Duration.ofSeconds(40))
+                new WebDriverWait(driver, Duration.ofSeconds(10))
                         .until(ExpectedConditions.presenceOfElementLocated(By.xpath(SHARE_BUTTON_BY_XPATH)));
                 WebElement startPostButton = driver.findElement(By.xpath(SHARE_BUTTON_BY_XPATH));
                 startPostButton.click();
@@ -154,16 +154,15 @@ public class LinkedInPoster {
                         .until(ExpectedConditions.presenceOfElementLocated(By.cssSelector(DIV_ROLE_TEXTBOX)));
                 WebElement postTextArea = driver.findElement(By.cssSelector(DIV_ROLE_TEXTBOX));
 
-                postTextArea.sendKeys(url);
-                Thread.sleep(2000);
-
-                postTextArea.sendKeys(title);
+                JavascriptExecutor js = (JavascriptExecutor) driver;
+                js.executeScript("arguments[0].innerText = arguments[1];", postTextArea, url + "\n" + title);
+                Thread.sleep(500);
 
                 new WebDriverWait(driver, Duration.ofSeconds(2))
                         .until(ExpectedConditions.presenceOfElementLocated(By.cssSelector(BUTTON_PRIMARY_EMBER_VIEW)));
                 WebElement postButton = driver.findElement(By.cssSelector(BUTTON_PRIMARY_EMBER_VIEW));
                 postButton.click();
-                Thread.sleep(1000);
+                Thread.sleep(300);
                 count++;
                 System.out.println("posted in :- " + groupUrl + " count " + count);
                 //Thread.sleep(2000);
