@@ -184,6 +184,7 @@ public class LinkedInPoster {
         }
     }
 
+    @Scheduled(cron = "0 0 9 * * ?") // Schedule to run every day at 9 AM
     public static void main(String[] args) throws InterruptedException, GeneralSecurityException, IOException {
         LinkedInPoster poster = new LinkedInPoster();
         poster.login(App.MAIL, App.PASSWORD);
@@ -192,4 +193,15 @@ public class LinkedInPoster {
                 randomVideo.getSnippet().getTitle());
         poster.quit();
     }
+
+    @Scheduled(cron = "0 0 9 * * ?") // Schedule to run every day at 9 AM
+    public void schedule() {
+        LinkedInPoster poster = new LinkedInPoster();
+        poster.login(App.MAIL, App.PASSWORD);
+        Video randomVideo = YouTubeChannelVideos.getRandomYoutubeVideos();
+        poster.postToGroups(YOUTUBE_BASE_URL + randomVideo.getId(),
+                randomVideo.getSnippet().getTitle());
+        poster.quit();
+    }
 }
+
